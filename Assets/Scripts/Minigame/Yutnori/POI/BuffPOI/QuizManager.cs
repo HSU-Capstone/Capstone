@@ -4,7 +4,12 @@ public class QuizManager : MonoBehaviour
 {
     public QuizDatabase quizDatabase;
     public QuizPanelUI quizPanelUI;
-    public BuffManager buffManager;
+    private BuffManager buffManager;
+
+    public void Start()
+    {
+        buffManager = GetComponent<BuffManager>();
+    }
 
     // 콜백과 PlayerState를 모두 받도록 시그니처 수정
     public void ShowRandomQuiz(System.Action<bool> onQuizEnd, PlayerState playerState = null)

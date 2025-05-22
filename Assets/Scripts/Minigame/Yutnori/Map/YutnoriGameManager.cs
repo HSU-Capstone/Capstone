@@ -1,96 +1,86 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
-public enum GameStage { Start, Throw, Move, Interact, End}
+public enum GameStage { Start, Throw, Move, Interact, End }
+
 public class YutnoriGameManager : MonoBehaviour
 {
     public GameStage stage;
     [SerializeField] private NodeManager nodeManager;
     [SerializeField] private ShortcutDialogUI shortcutDialogUI;
     [SerializeField] private EndPanelUI endPanelUI;
-    [SerializeField] private PlayerPiece[] playerPieces; // 플레이어 말 4개
+    [SerializeField] private PlayerPiece[] playerPieces;
     [SerializeField] private QuizManager quizManager;
 
-    // 현재 윷 결과 저장
-    private string currentYutResult = "";
-    private int moveDistance = 0;
-    public bool canThrowAgain = false;
-    public bool canMove = false; // MoveStage에서도 POI 클릭 가능한 시기는 정해져 있어서 이걸로 제어
+    public PlayerState[] playerStates;
+    private int currentPlayerIndex = 0;
+    public PlayerState CurrentPlayer => playerStates[currentPlayerIndex];
 
-    // 선택된 말
-    private PlayerPiece selectedPiece = null;
+    public bool isDraggingYut { get; private set; }
+    public void SetYutDragState(bool state) => isDraggingYut = state;
 
-    public bool isDraggingYut { get; private set; } 
-    public void SetYutDragState(bool state) => isDraggingYut = state; 
-
-    // Start is called before the first frame update
     void Start()
     {
+        // PlayerState 배열이 null이거나 크기가 0이면 playerPieces.Length로 새로 생성
+        if (playerStates == null || playerStates.Length != playerPieces.Length)
+            playerStates = new PlayerState[playerPieces.Length];
+
+        quizManager = GetComponent<QuizManager>();
+
+        // 각 요소가 null이면 new PlayerState()로 생성
+        for (int i = 0; i < playerStates.Length; i++)
+        {
+            if (playerStates[i] == null)
+                playerStates[i] = new PlayerState();
+
+            playerStates[i].piece = playerPieces[i];
+            playerPieces[i].playerState = playerStates[i];
+        }
         setGameStage(GameStage.Throw);
-        // YutController에서 윷 던지고 나서 결과값 얻고 GameStage을 Move로 바꿈
     }
 
-    // Update is called once per frame
-    void Update()
-    {
 
-    }
-    public void setGameStage(GameStage stage) 
+    void Update() { }
+
+    public void setGameStage(GameStage stage)
     {
         this.stage = stage;
         switch (stage)
         {
             case GameStage.Start:
-                {
-                    // 처음 시작시 
-                    break;
-                }
-            case GameStage.Throw:
-                {
-                    HighlightAllPieces(false);
-                    break;
-                }
-            case GameStage.Move:
-                {
-                    startMoveStage();
-                    break;
-                }
-            case GameStage.End:
-            {
-                    endPanelUI.Show();
-                    Debug.Log("END");
                 break;
-            }
+            case GameStage.Throw:
+                HighlightAllPieces(false);
+                break;
+            case GameStage.Move:
+                startMoveStage();
+                break;
+            case GameStage.End:
+                endPanelUI.Show();
+                Debug.Log("END");
+                break;
         }
     }
+
     public void ProcessYutResult(string result)
     {
-        currentYutResult = result;
-
-        // 결과에 따른 이동 거리 설정
+        CurrentPlayer.currentYutResult = result;
         switch (result)
         {
-            case "도": moveDistance = 1; canThrowAgain = false; break;
-            case "개": moveDistance = 2; canThrowAgain = false; break;
-            case "걸": moveDistance = 3; canThrowAgain = false; break;
-            case "윷": moveDistance = 4; canThrowAgain = true; break;
-            case "모": moveDistance = 5; canThrowAgain = true; break;
-            case "빽도": moveDistance = -1; canThrowAgain = false; break;
-            default: moveDistance = 0; canThrowAgain = false; break;
+            case "도": CurrentPlayer.moveDistance = 1; CurrentPlayer.canThrowAgain = false; break;
+            case "개": CurrentPlayer.moveDistance = 2; CurrentPlayer.canThrowAgain = false; break;
+            case "걸": CurrentPlayer.moveDistance = 3; CurrentPlayer.canThrowAgain = false; break;
+            case "윷": CurrentPlayer.moveDistance = 4; CurrentPlayer.canThrowAgain = true; break;
+            case "모": CurrentPlayer.moveDistance = 5; CurrentPlayer.canThrowAgain = true; break;
+            case "빽도": CurrentPlayer.moveDistance = -1; CurrentPlayer.canThrowAgain = false; break;
+            default: CurrentPlayer.moveDistance = 0; CurrentPlayer.canThrowAgain = false; break;
         }
     }
-    public void startMoveStage() 
+
+    public void startMoveStage()
     {
-        // 말 선택 단계로 변경
         HighlightAllPieces(true);
-        // PlayerPiece에서 onMouseDown으로 SelectPiece 호출
-        // SelectPiece는 nodeManager의 HighlightReachableNodes 호출
     }
 
-    // 모든 말 하이라이트
     public void HighlightAllPieces(bool highlight)
     {
         foreach (var piece in playerPieces)
@@ -99,45 +89,37 @@ public class YutnoriGameManager : MonoBehaviour
         }
     }
 
-    // 말 선택
     public void SelectPiece(PlayerPiece piece)
     {
-        selectedPiece = piece;
+        CurrentPlayer.piece = piece;
         HighlightAllPieces(false);
         piece.Highlight(true);
-
-        // NodeManager에게 경로 탐색 및 하이라이트 요청
-        nodeManager.HighlightReachableNodes(piece.currentNode, moveDistance);
+        nodeManager.HighlightReachableNodes(piece.currentNode, CurrentPlayer.moveDistance);
     }
 
-    // 선택된 말을 노드로 이동
     public void MoveSelectedPieceTo(PointOfInterest node)
     {
-        if (selectedPiece != null)
+        if (CurrentPlayer.piece != null)
         {
-            nodeManager.ClearHighlights(); // NodeManager에게 하이라이트 해제 요청
-            selectedPiece.MoveTo(node);
-            selectedPiece = null;
+            nodeManager.ClearHighlights();
+            CurrentPlayer.piece.MoveTo(node);
+            // CurrentPlayer.piece = null; // 필요시 해제
         }
     }
+
     private void UseShortcut(PlayerPiece piece, PointOfInterest currentPoi)
     {
-        // 이미 지름길 사용 중인지 체크 (플래그 필요시)
-        // 다음 지름길 노드 찾기 (예: currentPoi.NextPointsOfInterest 중 Type == Shortcut)
-        PointOfInterest nextShortcut = FindNextShortcut(currentPoi, 10); // 10칸 이내에서 탐색
-        Debug.Log(nextShortcut.name);
-
+        PointOfInterest nextShortcut = FindNextShortcut(currentPoi, 10);
+        Debug.Log(nextShortcut != null ? nextShortcut.name : "No shortcut found");
 
         if (nextShortcut != null)
         {
-            // 중복 방지 플래그 세팅
-            piece.SetShortcutUsed(true); 
-            selectedPiece = piece;
+            piece.SetShortcutUsed(true);
+            CurrentPlayer.piece = piece;
             MoveSelectedPieceTo(nextShortcut);
         }
     }
 
-    // N칸 뒤의 Shortcut 노드 찾기 (현재: 10칸 뒤)
     private PointOfInterest FindNextShortcut(PointOfInterest start, int maxStep = 10)
     {
         var current = start;
@@ -147,7 +129,7 @@ public class YutnoriGameManager : MonoBehaviour
                 return current;
             if (current.NextPointsOfInterest == null || current.NextPointsOfInterest.Count == 0)
                 break;
-            current = current.NextPointsOfInterest[0]; // 분기 없는 단순 경로라면 [0]
+            current = current.NextPointsOfInterest[0];
         }
         return null;
     }
@@ -165,11 +147,16 @@ public class YutnoriGameManager : MonoBehaviour
                 setGameStage(GameStage.Throw);
                 break;
             case POIType.Buff:
-                //// PlayerPiece에 PlayerState가 있다고 가정
-                //quizManager.ShowRandomQuiz((isCorrect) => {
-                //    // 여기에 추가적인 정답/오답 후 처리 필요시 작성
-                //    setGameStage(GameStage.Throw); // 퀴즈 종료 후 윷던지기 단계로 복귀
-                //}, piece.playerState);
+                // 버프 자동 성공 버프 소멸 처리
+                if (piece.playerState.nextBuffAutoSuccess)
+                {
+                    // 버프 무조건 지급 처리
+                    piece.playerState.ConsumeNextBuffAutoSuccess();
+                }
+                quizManager.ShowRandomQuiz((isCorrect) =>
+                {
+                    setGameStage(GameStage.Throw);
+                }, piece.playerState);
                 break;
             case POIType.Shortcut:
                 if (!piece.HasUsedShortcut())
