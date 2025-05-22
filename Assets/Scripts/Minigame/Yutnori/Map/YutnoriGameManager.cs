@@ -165,11 +165,11 @@ public class YutnoriGameManager : MonoBehaviour
                 setGameStage(GameStage.Throw);
                 break;
             case POIType.Buff:
-                // PlayerPiece에 PlayerState가 있다고 가정
-                quizManager.ShowRandomQuiz((isCorrect) => {
-                    // 여기에 추가적인 정답/오답 후 처리 필요시 작성
-                    setGameStage(GameStage.Throw); // 퀴즈 종료 후 윷던지기 단계로 복귀
-                }, piece.playerState);
+                //// PlayerPiece에 PlayerState가 있다고 가정
+                //quizManager.ShowRandomQuiz((isCorrect) => {
+                //    // 여기에 추가적인 정답/오답 후 처리 필요시 작성
+                //    setGameStage(GameStage.Throw); // 퀴즈 종료 후 윷던지기 단계로 복귀
+                //}, piece.playerState);
                 break;
             case POIType.Shortcut:
                 if (!piece.HasUsedShortcut())
