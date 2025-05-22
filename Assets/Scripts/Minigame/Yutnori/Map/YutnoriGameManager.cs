@@ -159,44 +159,35 @@ public class YutnoriGameManager : MonoBehaviour
             case POIType.Start:
                 break;
             case POIType.Component:
-                // UI창 띄우기
                 setGameStage(GameStage.Throw);
                 break;
             case POIType.Upgrade:
-                // 업그레이드 처리
                 setGameStage(GameStage.Throw);
                 break;
             case POIType.Buff:
+                // PlayerPiece에 PlayerState가 있다고 가정
                 quizManager.ShowRandomQuiz((isCorrect) => {
-                    if (isCorrect)
-                    {
-                        // 버프 지급
-                    }
-                    // 윷놀이로 복귀
-                });
-
-                setGameStage(GameStage.Throw);
+                    // 여기에 추가적인 정답/오답 후 처리 필요시 작성
+                    setGameStage(GameStage.Throw); // 퀴즈 종료 후 윷던지기 단계로 복귀
+                }, piece.playerState);
                 break;
             case POIType.Shortcut:
+                if (!piece.HasUsedShortcut())
                 {
-                    if (!piece.HasUsedShortcut()) // 이번 턴에 지름길 안 썼으면
-                    {
-                        var nextShortcut = FindNextShortcut(poi); // poi는 현재 위치
-                        bool isLastShortcut = (nextShortcut == null);
+                    var nextShortcut = FindNextShortcut(poi);
+                    bool isLastShortcut = (nextShortcut == null);
 
-                        shortcutDialogUI.Show(
-                            () => UseShortcut(piece, poi), // 예
-                            () => { setGameStage(GameStage.Throw); }, // 아니요
-                            isLastShortcut // 새 인자
-                        );
-                    }
-                    else setGameStage(GameStage.Throw); 
-                break;
+                    shortcutDialogUI.Show(
+                        () => UseShortcut(piece, poi),
+                        () => { setGameStage(GameStage.Throw); },
+                        isLastShortcut
+                    );
                 }
+                else setGameStage(GameStage.Throw);
+                break;
             case POIType.End:
                 setGameStage(GameStage.End);
                 break;
-                // ...
         }
     }
 }
