@@ -47,7 +47,7 @@ public class QuizManager : MonoBehaviour
         switch (buff.type)
         {
             case BuffType.ExtraThrow:
-                player.hasExtraThrow = true;
+                player.bonusThrowCount++;
                 break;
             case BuffType.StackPiece:
                 player.canStackPiece = true;

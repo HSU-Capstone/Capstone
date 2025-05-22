@@ -7,10 +7,9 @@ public class PlayerState
 
     // 윷 결과 관련
     public string currentYutResult = "";
-    public bool canThrowAgain = false;
+    public int bonusThrowCount = 0; // 버프 혹은 윷/모
 
     // 버프 관련
-    public bool hasExtraThrow = false;
     public bool canStackPiece = false;
     public int nextMovePlus = 0;
     public bool nextBuffAutoSuccess = false;
@@ -21,7 +20,7 @@ public class PlayerState
         moveDistance = 0;
         canMove = false;
         currentYutResult = "";
-        canThrowAgain = false;
+        bonusThrowCount = 0;
         // selectedPiece는 piece로 일원화
     }
 

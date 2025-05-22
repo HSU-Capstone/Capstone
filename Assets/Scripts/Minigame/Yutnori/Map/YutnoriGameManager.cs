@@ -9,11 +9,17 @@ public class YutnoriGameManager : MonoBehaviour
     [SerializeField] private ShortcutDialogUI shortcutDialogUI;
     [SerializeField] private EndPanelUI endPanelUI;
     [SerializeField] private PlayerPiece[] playerPieces;
-    [SerializeField] private QuizManager quizManager;
+    private QuizManager quizManager;
+    [SerializeField] private GameUIManager gameUIManager; // 턴수 화면에 띄우는 용
 
+    // 현재 턴인 플레이어와 관련 정보(두 번 던지기 등)
     public PlayerState[] playerStates;
     private int currentPlayerIndex = 0;
     public PlayerState CurrentPlayer => playerStates[currentPlayerIndex];
+
+    // 몇 턴이나 지났는지
+    private int turnCount = 1;
+    public int TurnCount => turnCount;
 
     public bool isDraggingYut { get; private set; }
     public void SetYutDragState(bool state) => isDraggingYut = state;
@@ -23,6 +29,8 @@ public class YutnoriGameManager : MonoBehaviour
         // PlayerState 배열이 null이거나 크기가 0이면 playerPieces.Length로 새로 생성
         if (playerStates == null || playerStates.Length != playerPieces.Length)
             playerStates = new PlayerState[playerPieces.Length];
+
+        gameUIManager.UpdateTurn(turnCount); // ui 텍스트 초기화
 
         quizManager = GetComponent<QuizManager>();
 
@@ -66,13 +74,13 @@ public class YutnoriGameManager : MonoBehaviour
         CurrentPlayer.currentYutResult = result;
         switch (result)
         {
-            case "도": CurrentPlayer.moveDistance = 1; CurrentPlayer.canThrowAgain = false; break;
-            case "개": CurrentPlayer.moveDistance = 2; CurrentPlayer.canThrowAgain = false; break;
-            case "걸": CurrentPlayer.moveDistance = 3; CurrentPlayer.canThrowAgain = false; break;
-            case "윷": CurrentPlayer.moveDistance = 4; CurrentPlayer.canThrowAgain = true; break;
-            case "모": CurrentPlayer.moveDistance = 5; CurrentPlayer.canThrowAgain = true; break;
-            case "빽도": CurrentPlayer.moveDistance = -1; CurrentPlayer.canThrowAgain = false; break;
-            default: CurrentPlayer.moveDistance = 0; CurrentPlayer.canThrowAgain = false; break;
+            case "도": CurrentPlayer.moveDistance = 1; break;
+            case "개": CurrentPlayer.moveDistance = 2; break;
+            case "걸": CurrentPlayer.moveDistance = 3; break;
+            case "윷": CurrentPlayer.moveDistance = 4; CurrentPlayer.bonusThrowCount++; break;
+            case "모": CurrentPlayer.moveDistance = 5; CurrentPlayer.bonusThrowCount++; break;
+            case "빽도": CurrentPlayer.moveDistance = -1; break;
+            default: CurrentPlayer.moveDistance = 0; break;
         }
     }
 
@@ -133,6 +141,25 @@ public class YutnoriGameManager : MonoBehaviour
         }
         return null;
     }
+    public void EndTurn()
+    {
+        // 보너스 던지기(윷/모/버프 등) 기회가 남아 있으면 턴 카운트 증가 없이 추가 던지기
+        if (CurrentPlayer.bonusThrowCount > 0)
+        {
+            CurrentPlayer.bonusThrowCount--;
+            setGameStage(GameStage.Throw);
+        }
+        else
+        {
+            turnCount++;
+            gameUIManager.UpdateTurn(turnCount);
+            // (여러 플레이어라면 다음 플레이어로 인덱스 변경)
+            // currentPlayerIndex = (currentPlayerIndex + 1) % playerStates.Length;
+            setGameStage(GameStage.Throw);
+        }
+
+        // (여기서 턴 카운트 UI 갱신 등 추가 처리)
+    }
 
     public void interactByPOI(PlayerPiece piece, PointOfInterest poi)
     {
@@ -155,9 +182,11 @@ public class YutnoriGameManager : MonoBehaviour
                 }
                 quizManager.ShowRandomQuiz((isCorrect) =>
                 {
-                    setGameStage(GameStage.Throw);
+                    // 퀴즈 결과에 따라 보너스 던지기 획득 등 처리됨
+                    EndTurn(); // setGameStage(GameStage.Throw) 대신 EndTurn 호출
                 }, piece.playerState);
                 break;
+
             case POIType.Shortcut:
                 if (!piece.HasUsedShortcut())
                 {
@@ -166,11 +195,11 @@ public class YutnoriGameManager : MonoBehaviour
 
                     shortcutDialogUI.Show(
                         () => UseShortcut(piece, poi),
-                        () => { setGameStage(GameStage.Throw); },
+                        () => { EndTurn(); }, // setGameStage(GameStage.Throw) 대신 EndTurn 호출
                         isLastShortcut
                     );
                 }
-                else setGameStage(GameStage.Throw);
+                else EndTurn();
                 break;
             case POIType.End:
                 setGameStage(GameStage.End);
